@@ -1,0 +1,7 @@
+SELECT categoryname FROM categories NATURAL JOIN (SELECT category FROM products NATURAL JOIN (
+		SELECT prod_id FROM (SELECT prod_id, COUNT(quantity) 
+		FROM orderlines WHERE orderdate > '2009-01-15'::date 
+		GROUP BY(prod_id)) as a WHERE count > '35') as b) AS c
+		
+		
+		

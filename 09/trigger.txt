@@ -1,0 +1,144 @@
+To create a new trigger in PostgreSQL, you need to:
+
+Create a trigger function using CREATE FUNCTION statement.
+Bind this trigger function to a table using CREATE TRIGGER statement.
+If you are not familiar with creating user-defined function, you can check it out the PostgreSQL stored procedure section.
+
+Creating the trigger function
+A trigger function is similar to an ordinary function, except that it does not take any arguments and has return value type triggeras follows:
+
+1
+CREATE FUNCTION trigger_function() RETURN trigger AS
+Notice that you can create trigger functions using any languages supported by PostgreSQL. In this tutorial, we will use PL/pgSQL for the demonstration.
+
+The trigger function receives data about their calling environment through a special structure called TriggerData, which contains a set of local variables. For example, OLD and NEW represent the states of row in the table before or after the triggering event. PostgreSQL provides other local variables starting with TG_ as the prefix such as TG_WHEN, TG_TABLE_NAME, etc.
+
+Once the trigger function is defined, you can bind it to specific actions on a table.
+
+Creating the trigger
+To create a new trigger, you use the CREATE TRIGGER statement. The complete syntax of the CREATE TRIGGER is complex with many options. However, for the sake of demonstration, we will use the simple form of the CREATE TRIGGER syntax as follows:
+
+1
+2
+3
+4
+CREATE TRIGGER trigger_name {BEFORE | AFTER | INSTEAD OF} {event [OR ...]}
+   ON table_name
+   [FOR [EACH] {ROW | STATEMENT}]
+   EXECUTE PROCEDURE trigger_function
+The event could be INSERT, UPDATE, DELETE or TRUNCATE. You can define trigger that fires before ( BEFORE) or after ( AFTER) event. The INSTEAD OF is used only for INSERT, UPDATE, or DELETE on the views.
+
+As mentioned in the introduction to PostgreSQL trigger, PostgreSQL provides two kinds of triggers: row level trigger and statement level trigger, which can be specified by FOR EACH ROW (row level trigger) or FOR EACH STATEMENT (statement level trigger).
+
+PostgreSQL Trigger example
+Let’s take a look at an example of creating a new trigger. In this example, we will create a new table named employees as follows:
+
+1
+2
+3
+4
+5
+CREATE TABLE employees(
+   id int4 serial primary key,
+   first_name varchar(40) NOT NULL,
+   last_name varchar(40) NOT NULL
+);
+Whenever employee’s last name changes, we will log it into a separate table named employee_audits through a trigger.
+
+1
+2
+3
+4
+5
+6
+CREATE TABLE employee_audits (
+   id int4 serial primary key,
+   employee_id int4 NOT NULL,
+   last_name varchar(40) NOT NULL,
+   changed_on timestamp(6) NOT NULL
+)
+First, we define a new function called log_last_name_changes:
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+CREATE OR REPLACE FUNCTION log_last_name_changes()
+  RETURNS trigger AS
+$BODY$
+BEGIN
+   IF NEW.last_name <> OLD.last_name THEN
+       INSERT INTO employee_audits(employee_id,last_name,changed_on)
+       VALUES(OLD.id,OLD.last_name,now());
+   END IF;
+ 
+   RETURN NEW;
+END;
+$BODY$
+The function checks if the last name of employee changes, it will insert the old last name into the employee_audits table including employee id, last name, and the time of change.
+
+Second, we bind the trigger function to the employees table. The trigger name is last_name_changes. Before the value of the last_name column is updated, the trigger function is automatically invoked into log the changes.
+
+1
+2
+3
+4
+5
+CREATE TRIGGER last_name_changes
+  BEFORE UPDATE
+  ON employees
+  FOR EACH ROW
+  EXECUTE PROCEDURE log_last_name_changes();
+Third, we can insert some sample data for testing. We insert two rows into the employees table.
+
+1
+2
+3
+4
+5
+INSERT INTO employees (first_name, last_name)
+VALUES ('John', 'Doe');
+ 
+INSERT INTO employees (first_name, last_name)
+VALUES ('Lily', 'Bush');
+We can examine the employees table:
+
+1
+SELECT * FROM employees;
+employees_table
+
+Suppose Lily Bush gets married and she needs to change her last name to Lily Brown. We can update it as the following query:
+
+1
+2
+3
+UPDATE employees
+SET last_name = 'Brown'
+WHERE ID = 2;
+We check if the last name of Lily has been updated.
+
+1
+SELECT * FROM employees;
+employees_table_after_update
+
+As you see, the Lily’s last name has been updated. Let’s check the employee_audits table:
+
+1
+2
+SELECT *
+FROM employee_audits;
+employee_audits
+
+As you see the change was logged into the employee_audits table by the trigger.
+
+In this tutorial, we have shown you a simple example of creating PostgreSQL trigger to audit the changes.
+
+

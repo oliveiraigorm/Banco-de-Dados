@@ -1,0 +1,32 @@
+--1
+SELECT qsite, qonline FROM (SELECT COUNT(studentid) qsite FROM studentgrade NATURAL JOIN onsitecourse) a, 
+(SELECT COUNT(studentid) qonline FROM studentgrade NATURAL JOIN onlinecourse) b
+
+--2
+SELECT title, grade FROM (SELECT title, courseid FROM department NATURAL JOIN 
+course WHERE name='Mathematics') C
+NATURAL JOIN studentgrade GROUP BY(title, grade) ORDER BY  grade DESC
+LIMIT 1
+
+--3
+SELECT  grade as nota,
+k.first_name as nome_instrutor,	k.last_name as sobrenome_instrutor,
+	person.first_name as nome_aluno, person.last_name as sobrenome_aluno,
+	title as nome_curso
+ FROM (
+	SELECT * FROM (
+		SELECT * FROM (
+			SELECT * FROM(
+				SELECT * FROM (
+					SELECT courseid, grade, studentid FROM studentgrade
+					GROUP BY(courseid, grade, studentid) ORDER BY grade LIMIT 3
+					) a NATURAL JOIN courseinstructor
+				)master NATURAL JOIN person
+			) ints
+		)r NATURAL JOIN course)
+k LEFT JOIN person ON k.studentid = person.personid	
+
+--4
+SELECT first_name, last_name FROM (SELECT studentid AS personid FROM (SELECT instructorid FROM office_assignment WHERE location  LIKE ('%Williams%'))a
+NATURAL JOIN studentgrade GROUP BY (studentid))b NATURAL JOIN person
+	
